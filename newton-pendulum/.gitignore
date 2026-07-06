@@ -1,4 +1,4 @@
-# Logs
+
 logs
 *.log
 npm-debug.log*
@@ -7,32 +7,32 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
+
 node_modules
 
-# Build output
+
 dist
 dist-ssr
 
-# Local environment
+
 *.local
 
-# Visual Studio
+
 .vs/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 
-# VS Code
+
 .vscode/*
 !.vscode/extensions.json
 
-# JetBrains IDEs
+
 .idea
 
-# macOS
+
 .DS_Store
 
-# Temporary files
+
 *.sw?
