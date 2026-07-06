@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Newton Pendulum</title>
+    <style>
+        #reset-btn {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 10;
+            padding: 10px 18px;
+            font-family: sans-serif;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(20, 20, 20, 0.75);
+            color: #fff;
+            cursor: pointer;
+        }
+
+            #reset-btn:hover {
+                background: rgba(20, 20, 20, 0.9);
+            }
+    </style>
+</head>
+<body>
+    <canvas id="scene"></canvas>
+    <button id="reset-btn">إعادة ضبط البندول</button>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
