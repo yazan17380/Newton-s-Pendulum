@@ -2,38 +2,40 @@ import * as THREE from 'three';
 
 
 
-
 export const physicsParams = {
   gravity: 9.81,
 
-  
-
   drag: 0.15,
 
-  restitution: 0.97,
-
-  
+  restitution: 0.97, 
 
   bounceFlipThreshold: 1.2,
-  bounceHoldFrames: 8,
-
+  bounceHoldFrames: 8, 
 
   stringMinGap: 0.01,
   stringCorrectionFactor: 0.5,
 };
 
-const COLLISION_ITERATIONS = 8;
+const COLLISION_ITERATIONS = 8; 
 
-export const BALL_MASS = 0.05;
+export const BALL_MASS = 0.05; 
 
-function massOf(p) {
+export const trailState = { enabled: false };
+
+export function setTrailsEnabled(pivots, enabled) {
+  trailState.enabled = enabled;
+  for (const p of pivots) {
+    if (p.trail) p.trail.line.visible = enabled;
+  }
+}
+
+export function massOf(p) {
   return isFiniteNumber(p.mass) && p.mass > 0 ? p.mass : BALL_MASS;
 }
 
-
-const MAX_LOCAL_SPEED = 15;  
-const MAX_DRAG_SPEED = 8;    
-const DRAG_VELOCITY_SMOOTHING = 0.35;
+const MAX_LOCAL_SPEED = 15; 
+const MAX_DRAG_SPEED = 8;  
+const DRAG_VELOCITY_SMOOTHING = 0.35; 
 
 function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
@@ -43,12 +45,10 @@ function isFiniteVector(v) {
   return isFiniteNumber(v.x) && isFiniteNumber(v.y) && isFiniteNumber(v.z);
 }
 
-
 export function updatePendulumPhysics(pivots, deltaTime, onCollision = null) {
   if (!pivots || pivots.length === 0) return;
 
-  const dt = Math.min(deltaTime, 1 / 30);
-
+  const dt = Math.min(deltaTime, 1 / 30); 
 
   for (const p of pivots) {
     if (p.holdFrames > 0) {
@@ -59,17 +59,13 @@ export function updatePendulumPhysics(pivots, deltaTime, onCollision = null) {
     }
   }
 
-
   const preVel = pivots.map((p) => p.localVel.clone());
 
-
   for (const p of pivots) {
-    if (p.holdFrames > 0) continue;
+    if (p.holdFrames > 0) continue; 
     updateDragVelocity3D(p, dt);
     integratePendulumComplex(p, dt);
   }
-
-  
 
   const collidedPairs = new Set();
   for (let iter = 0; iter < COLLISION_ITERATIONS; iter++) {
@@ -79,10 +75,8 @@ export function updatePendulumPhysics(pivots, deltaTime, onCollision = null) {
 
   for (const p of pivots) sanitizePivotState(p);
 
-
   resolveStringCollisions(pivots);
   for (const p of pivots) sanitizePivotState(p);
-
 
   for (let i = 0; i < pivots.length; i++) {
     const p = pivots[i];
@@ -90,14 +84,12 @@ export function updatePendulumPhysics(pivots, deltaTime, onCollision = null) {
     checkBounceFlip(p, preVel[i]);
   }
 
-
   for (const p of pivots) {
     p.ball.position.copy(p.localPos);
     updateStringTransforms(p);
+    if (trailState.enabled) updateTrail(p);
   }
 }
-
-
 
 function checkBounceFlip(p, prevVel) {
   const threshold = physicsParams.bounceFlipThreshold;
@@ -106,14 +98,13 @@ function checkBounceFlip(p, prevVel) {
   if (prevSpeed < threshold || newSpeed < threshold) return;
 
   const cosAngle = prevVel.dot(p.localVel) / (prevSpeed * newSpeed);
-  if (cosAngle < -0.6) {
+  if (cosAngle < -0.6) { 
     p.holdFrames = physicsParams.bounceHoldFrames;
     p.heldVel = p.heldVel || new THREE.Vector3();
     p.heldVel.copy(p.localVel);
     p.localVel.set(0, 0, 0);
   }
 }
-
 
 export function resetPendulum(pivots) {
   for (const p of pivots) {
@@ -124,12 +115,22 @@ export function resetPendulum(pivots) {
     p._prevLocalPos = null;
     p.holdFrames = 0;
     p.heldVel = null;
+    p._stuckPartner = null;
+    p._stuckFrames = 0;
+    p.tension = massOf(p) * physicsParams.gravity; 
     p.ball.position.copy(p.localPos);
     updateStringTransforms(p);
+
+    if (p.trail) {
+      for (let k = 0; k < p.trail.maxPoints; k++) {
+        p.trail.positions[k * 3] = p.localPos.x;
+        p.trail.positions[k * 3 + 1] = p.localPos.y;
+        p.trail.positions[k * 3 + 2] = p.localPos.z;
+      }
+      p.trail.line.geometry.attributes.position.needsUpdate = true;
+    }
   }
 }
-
-
 
 function updateDragVelocity3D(p, dt) {
   if (!p.isDragging) {
@@ -157,7 +158,6 @@ function updateDragVelocity3D(p, dt) {
 }
 
 
-
 function integratePendulumComplex(p, dt) {
   if (p.isDragging) {
     sanitizePivotState(p);
@@ -171,21 +171,20 @@ function integratePendulumComplex(p, dt) {
   const speedSq = p.localVel.lengthSq();
 
   const gravityForceY = -g * mass;
-  const gravityAlongRope = gravityForceY * ropeDir.y;
+  const gravityAlongRope = gravityForceY * ropeDir.y; 
 
   const tensionMagnitude = -(mass * speedSq) / p.length - gravityAlongRope;
+  p.tension = Math.abs(tensionMagnitude); 
 
   const totalForce = _scratchC.set(0, gravityForceY, 0);
   totalForce.addScaledVector(ropeDir, tensionMagnitude);
-  totalForce.addScaledVector(p.localVel, -physicsParams.drag * mass);
+  totalForce.addScaledVector(p.localVel, -physicsParams.drag * mass); 
 
   const accel = totalForce.multiplyScalar(1 / mass);
   p.localVel.addScaledVector(accel, dt);
   p.localPos.addScaledVector(p.localVel, dt);
 
-
   p.localPos.setLength(p.length);
-
 
   const newRopeDir = _scratchB.copy(p.localPos).normalize();
   const radialSpeed = p.localVel.dot(newRopeDir);
@@ -197,12 +196,11 @@ function integratePendulumComplex(p, dt) {
   sanitizePivotState(p);
 }
 
-
 function sanitizePivotState(p) {
   if (!isFiniteVector(p.localPos) || p.localPos.lengthSq() < 1e-8) {
     p.localPos.set(0, -p.length, 0);
   } else {
-    p.localPos.setLength(p.length);
+    p.localPos.setLength(p.length); 
   }
 
   if (!isFiniteVector(p.localVel)) {
@@ -211,8 +209,6 @@ function sanitizePivotState(p) {
     p.localVel.setLength(MAX_LOCAL_SPEED);
   }
 }
-
-
 
 function resolveCollisions(pivots, collidedPairs, onCollision) {
   const order = pivots
@@ -229,6 +225,7 @@ function resolveCollisions(pivots, collidedPairs, onCollision) {
   return any;
 }
 
+const MAX_STUCK_FRAMES = 30;
 
 function resolvePairAt(pivots, i, j, collidedPairs, onCollision) {
   const a = pivots[i];
@@ -237,13 +234,14 @@ function resolvePairAt(pivots, i, j, collidedPairs, onCollision) {
   const ax = a.restX + a.localPos.x, ay = a.localPos.y, az = a.localPos.z;
   const bx = b.restX + b.localPos.x, by = b.localPos.y, bz = b.localPos.z;
 
-  const dx = bx - ax;
-  const dy = by - ay;
-  const dz = bz - az;
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
   const minDist = a.radius + b.radius;
 
-  if (dist >= minDist || dist < 1e-6) return false;
+  if (dist >= minDist || dist < 1e-6) {
+    if (a._stuckPartner === b) a._stuckFrames = 0;
+    return false;
+  }
 
   const nx = dx / dist, ny = dy / dist, nz = dz / dist;
 
@@ -262,7 +260,27 @@ function resolvePairAt(pivots, i, j, collidedPairs, onCollision) {
   const overlap = minDist - dist;
   const aFixed = a.isDragging || a.holdFrames > 0;
   const bFixed = b.isDragging || b.holdFrames > 0;
+
+  if (a._stuckPartner === b) {
+    a._stuckFrames = (a._stuckFrames || 0) + 1;
+  } else {
+    a._stuckPartner = b;
+    a._stuckFrames = 1;
+  }
+
   if (aFixed && bFixed) return approaching;
+
+  if (overlap > 0) {
+    if (aFixed) {
+      applyPositionalPush(b, nx, ny, nz, overlap);
+    } else if (bFixed) {
+      applyPositionalPush(a, nx, ny, nz, -overlap);
+    } else {
+      const half = overlap / 2;
+      applyPositionalPush(a, nx, ny, nz, -half);
+      applyPositionalPush(b, nx, ny, nz, half);
+    }
+  }
 
   if (approaching) {
     const e = physicsParams.restitution;
@@ -270,11 +288,9 @@ function resolvePairAt(pivots, i, j, collidedPairs, onCollision) {
     if (aFixed) {
       const newVbn = (1 + e) * van - e * vbn;
       applyNormalImpulse(b, nx, ny, nz, newVbn - vbn);
-      applyPositionalPush(b, nx, ny, nz, overlap);
     } else if (bFixed) {
       const newVan = (1 + e) * vbn - e * van;
       applyNormalImpulse(a, nx, ny, nz, newVan - van);
-      applyPositionalPush(a, nx, ny, nz, -overlap);
     } else {
       const mA = massOf(a);
       const mB = massOf(b);
@@ -286,14 +302,25 @@ function resolvePairAt(pivots, i, j, collidedPairs, onCollision) {
 
       applyNormalImpulse(a, nx, ny, nz, newVan - van);
       applyNormalImpulse(b, nx, ny, nz, newVbn - vbn);
-
-      const half = overlap / 2;
-      applyPositionalPush(a, nx, ny, nz, -half);
-      applyPositionalPush(b, nx, ny, nz, half);
     }
   }
 
-  return approaching || (overlap > 0 && !(aFixed && bFixed));
+  if (a._stuckFrames > MAX_STUCK_FRAMES && !(aFixed && bFixed)) {
+    const extraGap = minDist * 0.08;
+    if (aFixed) {
+      applyPositionalPush(b, nx, ny, nz, extraGap);
+      b.localVel.addScaledVector({ x: nx, y: ny, z: nz }, -vbn * 0.5);
+    } else if (bFixed) {
+      applyPositionalPush(a, nx, ny, nz, -extraGap);
+      a.localVel.addScaledVector({ x: nx, y: ny, z: nz }, -van * 0.5);
+    } else {
+      applyPositionalPush(a, nx, ny, nz, -extraGap / 2);
+      applyPositionalPush(b, nx, ny, nz, extraGap / 2);
+    }
+    a._stuckFrames = 0;
+  }
+
+  return approaching || overlap > 0;
 }
 
 function applyNormalImpulse(p, nx, ny, nz, deltaVn) {
@@ -309,7 +336,6 @@ function applyPositionalPush(p, nx, ny, nz, amount) {
 
   p.localPos.setLength(p.length);
 }
-
 
 
 function resolveStringCollisions(pivots) {
@@ -371,8 +397,6 @@ function resolveStringCollisions(pivots) {
   }
 }
 
-
-
 function segmentSegmentDistSq3D(p1, q1, p2, q2) {
   const ux = q1.x - p1.x, uy = q1.y - p1.y, uz = q1.z - p1.z;
   const vx = q2.x - p2.x, vy = q2.y - p2.y, vz = q2.z - p2.z;
@@ -417,7 +441,6 @@ function segmentSegmentDistSq3D(p1, q1, p2, q2) {
   return cx * cx + cy * cy + cz * cz;
 }
 
-
 const _up = new THREE.Vector3(0, 1, 0);
 const _stringDir = new THREE.Vector3();
 const _stringQuat = new THREE.Quaternion();
@@ -438,12 +461,20 @@ function updateStringTransforms(p) {
   }
 }
 
+function updateTrail(p) {
+  if (!p.trail) return;
+  const { positions, maxPoints } = p.trail;
 
+  positions.copyWithin(0, 3, maxPoints * 3);
+  const lastIdx = (maxPoints - 1) * 3;
+  positions[lastIdx] = p.localPos.x;
+  positions[lastIdx + 1] = p.localPos.y;
+  positions[lastIdx + 2] = p.localPos.z;
+  p.trail.line.geometry.attributes.position.needsUpdate = true;
+}
 const _scratchA = new THREE.Vector3();
 const _scratchB = new THREE.Vector3();
 const _scratchC = new THREE.Vector3();
-
-
 
 export function pullBall(pivots, index, options = {}) {
   const p = pivots[index];

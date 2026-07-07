@@ -1,30 +1,19 @@
 import * as THREE from 'three';
 
 
-
-
 export function setupPendulumInteraction(initialPivots, camera, domElement, controls = null) {
-  
 
   domElement.style.touchAction = 'none';
 
   const raycaster = new THREE.Raycaster();
   const pointerNDC = new THREE.Vector2();
 
- 
-
   let pivots = initialPivots;
   let ballMeshes = pivots.map((p) => p.ball);
 
-  
-
   const draggingPivots = new Map();
 
-  
-
   const selectedPivots = new Set();
-
-  
 
   function setSelectedVisual(pivotData, isSelected) {
     if (!pivotData._selectionRing) {
@@ -53,8 +42,6 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
     pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
-  
-
   const attachWorldPos = new THREE.Vector3();
 
   function getAttachWorldPosition(pivot) {
@@ -80,8 +67,6 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
     const hits = raycaster.intersectObjects(ballMeshes, false);
 
     if (hits.length === 0) {
-      
-
 
       if (!event.shiftKey) {
         for (const p of selectedPivots) setSelectedVisual(p, false);
@@ -93,14 +78,11 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
     const pivotData = pivots.find((p) => p.ball === hits[0].object);
     if (!pivotData) return;
 
-
     for (const drag of draggingPivots.values()) {
       if (drag.members.some((m) => m.pivot === pivotData)) return;
     }
 
     if (event.shiftKey) {
-
-
       if (selectedPivots.has(pivotData)) {
         selectedPivots.delete(pivotData);
         setSelectedVisual(pivotData, false);
@@ -110,8 +92,6 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
       }
       return;
     }
-
-    
 
     let groupPivots;
     if (selectedPivots.has(pivotData) && selectedPivots.size > 1) {
@@ -123,8 +103,6 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
       groupPivots = [pivotData];
     }
 
-    
-
     const members = groupPivots.map((p) => ({
       pivot: p,
       posOffset: p.localPos.clone().sub(pivotData.localPos),
@@ -133,15 +111,12 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
     for (const p of groupPivots) {
       p.isDragging = true;
       p.localVel.set(0, 0, 0);
-      
 
       p._dragFrames = 0;
       p._prevLocalPos = p.localPos.clone();
     }
 
     draggingPivots.set(event.pointerId, { anchor: pivotData, members });
-
-    
 
     if (domElement.setPointerCapture) {
       try {
@@ -169,13 +144,9 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
     let dx = point.x - attach.x;
     let dz = point.z - attach.z;
 
-    
-
     if (!event.altKey) {
       dz = 0;
     }
-
-    
 
     const maxHorizSq = L * L * 0.98;
     const horizSq = dx * dx + dz * dz;
@@ -185,11 +156,7 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
       dz *= scale;
     }
 
-    
-
     const dy = -Math.sqrt(Math.max(L * L - dx * dx - dz * dz, 0));
-
-    
 
     for (const member of drag.members) {
       member.pivot.localPos
@@ -211,10 +178,8 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
       try {
         domElement.releasePointerCapture(event.pointerId);
       } catch (e) {
-
       }
     }
-
 
     if (draggingPivots.size === 0) {
       domElement.style.cursor = 'auto';
@@ -228,7 +193,6 @@ export function setupPendulumInteraction(initialPivots, camera, domElement, cont
   domElement.addEventListener('pointerleave', onPointerUp);
 
   return {
-
     setPivots(newPivots) {
       pivots = newPivots;
       ballMeshes = pivots.map((p) => p.ball);

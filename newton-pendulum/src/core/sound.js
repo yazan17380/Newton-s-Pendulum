@@ -1,6 +1,17 @@
 
 let audioCtx = null;
 
+let soundLevel = 0.55;
+let muted = false;
+
+export function setSoundLevel(level) {
+  soundLevel = Math.max(0, Math.min(1, level));
+}
+
+export function setMuted(value) {
+  muted = value;
+}
+
 function getContext() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -9,6 +20,8 @@ function getContext() {
 }
 
 export function playCollisionSound(intensity = 0.5) {
+  if (muted || soundLevel <= 0) return;
+
   const ctx = getContext();
 
   if (ctx.state === 'suspended') ctx.resume();
@@ -23,7 +36,7 @@ export function playCollisionSound(intensity = 0.5) {
   oscillator.frequency.setValueAtTime(700 + clamped * 500, now);
   oscillator.frequency.exponentialRampToValueAtTime(180, now + 0.09);
 
-  const volume = 0.06 + clamped * 0.3;
+  const volume = (0.06 + clamped * 0.3) * soundLevel;
   gain.gain.setValueAtTime(volume, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
 
